@@ -19,7 +19,7 @@ MDD -21.54066954224619
 
 ### DUAL MOMENTUM
 
-<img src="./DUAL_MOMENTUM_output" width="50%">
+<img src="./DUAL_MOMENTUM_output.png" width="50%">
 
 MM_PERIOD 13.67 
 CAGR 11.58 
