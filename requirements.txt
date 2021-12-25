@@ -1,5 +1,10 @@
 numpy=1.19.5
+pandas
+pandas-datareader
+seaborn
+matplotlib
 koapy
 kiwoom
 pykiwoom
 workalendar
+xlsxwriter
