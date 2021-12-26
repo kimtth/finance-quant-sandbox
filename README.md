@@ -39,6 +39,52 @@ MDD -26.501303001917485
 (base) >conda create --name pyconda --clone base
 ```
 
+## Leverage
+
+- 전략 1
+
+종가 기준 나스닥 -7% 이상 뜨면 공황
+
+공황이면 보유주식 전량 매도 후 2달 기다림
+
+기다리는 동안 다시 -7% 이상 뜨면 그 때 기준으로 
+
+다시 2달 기다림.
+
+```bash
+200001 ~ 20210920 (22년) 보유 | 회피
+67.17 % | 158.50 %
+
+201001 ~ 20210920 (12년) 보유 | 회피
+10909.93 % | 8459.6 %
+```
+
+- 전략 2
+
+평단가 
+
+최초 매수 시점: 전고점 기준 MDD 15% 혹은 20% 이하
+
+기준 MDD 10% 추가 매수는 투자원금보다 낮은 금액
+
+평단가를 최초 매수가에 최대한 가깝게 유지
+
+e.g, 라오어 무한매수 1일차 100USD + 2일차 100USD + ....
+
+현금 30 - 50% 보유
+
+MDD 30% 이상 폭락 시, 여유 현금으로 매수
+
+- 전략3
+
+무한매수 전략
+
+https://www.donga.com/news/Economy/article/all/20210619/107534251/1
+
+https://infinite-geometric.tistory.com/47
+
+https://blog.naver.com/hubeq/222501596897
+
 ## Kiwoon securities Open API Overview 퀀트투자
 
 키움증권 Open API 는 파이썬 Python 32비트에서만 작동.

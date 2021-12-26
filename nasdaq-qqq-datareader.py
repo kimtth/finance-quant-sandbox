@@ -21,23 +21,22 @@ def get_price_data(ticker, start, end):
     df['DRAWDOWN'] = (-(df['Adj Close'].cummax() - df['Adj Close']) / df['Adj Close'].cummax()) * 100
     df['DRAWDOWN (%)'] = df['DRAWDOWN'].round(2)
 
-    index_order = ['DATE', 'YEAR', 'YEAR_MONTH'] + [index for index in list(df.columns.values) if
-                                                    index not in ['DATE', 'YEAR', 'YEAR_MONTH']]
-    df = df[index_order]
+    column_order = ['DATE', 'YEAR', 'YEAR_MM'] + [col for col in list(df.columns.values) if
+                                                  col not in ['DATE', 'YEAR', 'YEAR_MM']]
+    df = df[column_order]
+    df = df.drop(['High', 'Low', 'Open', 'Close', 'Volume'], axis=1)
     df = df.reset_index(drop=True)
 
     return df
 
 
-def dfs_to_excel():
-    # ['^IXIC', '^DJI', '^GSPC'] NASDAQ, DOW JONES, S&P
-    target = ['^IXIC', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SOXX', 'SOXL', 'SMH']
+def dfs_to_excel(targets):
     start = datetime(2000, 1, 1)
     end = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
     writer = pd.ExcelWriter('NASDAQ-SP-QQQ-data.xlsx', engine='xlsxwriter')
 
     dfs = dict()
-    for ticker in target:
+    for ticker in targets:
         df = get_price_data(ticker, start, end)
         dfs[ticker] = df
 
@@ -48,8 +47,10 @@ def dfs_to_excel():
 
 
 if __name__ == '__main__':
-    dfs_to_excel()
-    '''
+    # ['^IXIC', '^DJI', '^GSPC'] NASDAQ, DOW JONES, S&P
+    # targets = ['^IXIC', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SPXL', 'SOXX', 'SOXL', 'SMH']
+    # dfs_to_excel(targets)
+
     xls = pd.ExcelFile(os.path.abspath('QQQ-data.xlsx'))
 
     dfs = []
@@ -59,5 +60,6 @@ if __name__ == '__main__':
         dfs.append(df)
 
     print("sss")
-    print(dfs)
-    '''
+    # print(dfs)
+
+    df_soxx = dfs['SOXX']
