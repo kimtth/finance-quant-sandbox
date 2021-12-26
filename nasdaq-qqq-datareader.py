@@ -2,6 +2,7 @@ import os.path
 from datetime import datetime
 import pandas as pd
 import pandas_datareader as pdr
+import numpy as np
 
 
 def get_price_data(ticker, start, end):
@@ -9,10 +10,11 @@ def get_price_data(ticker, start, end):
 
     df['DATE'] = df.index
     df['YEAR'] = df['DATE'].dt.strftime('%Y').astype(str)
-    df['YEAR_MONTH'] = df['DATE'].dt.strftime('%Y%m').astype(str)
+    df['YEAR_MM'] = df['DATE'].dt.strftime('%Y%m').astype(str)
     df['PCT_CHANGE'] = df['Adj Close'].pct_change()
-    df['PCT_CHANGE (%)'] = df['PCT_CHANGE'] * 100
-    df['PCT_CHANGE (%)'] = df['PCT_CHANGE (%)'].round(2)
+    df['DAILY_RETURN (%)'] = df['PCT_CHANGE'] * 100
+    df['DAILY_RETURN (%)'] = df['DAILY_RETURN (%)'].round(2)
+    df['CUMLUATIVE_RETURN'] = np.exp(np.log1p(df['PCT_CHANGE'])).cumsum()
 
     df['MA_200D'] = df['Adj Close'].rolling(200).mean()
     df['MA_12M'] = df['Adj Close'].rolling(12).mean()
@@ -29,7 +31,7 @@ def get_price_data(ticker, start, end):
 
 def dfs_to_excel():
     # ['^IXIC', '^DJI', '^GSPC'] NASDAQ, DOW JONES, S&P
-    target = ['^IXIC', 'QQQ', 'TQQQ', 'TECL', '^GSPC']
+    target = ['^IXIC', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SOXX', 'SOXL', 'SMH']
     start = datetime(2000, 1, 1)
     end = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
     writer = pd.ExcelWriter('NASDAQ-SP-QQQ-data.xlsx', engine='xlsxwriter')
