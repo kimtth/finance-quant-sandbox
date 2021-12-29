@@ -132,9 +132,9 @@ def laa_backtest(df_asset_laa, uem_monthly):
         # @Tip: .dt is needed when it's a group of data, if it's only one element you don't need .dt
         df_uem['YEAR'] = df_uem.loc[:, 'YEAR'].astype(str)
         df_uem['YEAR_MONTH'] = df_uem.loc[:, 'YEAR_MONTH'].astype(str)
-        year_month_str = str(date.year) + str(date.month).zfill(2)
+        year_month_str = str(date.year_month) + str(date.month).zfill(2)
         uem_target = df_uem[
-            (df_uem['YEAR'] == str(date.year)) & (df_uem['YEAR_MONTH'] == str(
+            (df_uem['YEAR'] == str(date.year_month)) & (df_uem['YEAR_MONTH'] == str(
                 year_month_str))]
 
         if uem_target.shape[0] == 0:
@@ -231,16 +231,16 @@ def dual_momentum_backtest(df_asset_dual):
 
     for date in rebalancing_monthly_dates:
         try:
-            date_1yr_ago = datetime(date.year - 1, date.month, date.day)
+            date_1yr_ago = datetime(date.year_month - 1, date.month, date.day)
             # @Debug: print(type(date), type(date_1yr_ago), date, date_1yr_ago)
         except ValueError:
             # @Tip: e.g. 2012-02-29 00:00:00 2011-02-28 00:00:00
             #       date.day-1 : ValueError: day is out of range for month
-            date_1yr_ago = datetime(date.year - 1, date.month, date.day - 1)
+            date_1yr_ago = datetime(date.year_month - 1, date.month, date.day - 1)
             # @Debug: print(type(date_1yr_ago), date, date_1yr_ago)
             pass
 
-        date_1yr_ago_adjust_range = datetime(date.year - 1, date.month, date.day - 5)
+        date_1yr_ago_adjust_range = datetime(date.year_month - 1, date.month, date.day - 5)
         date_df = df_asset_dual[df_asset_dual['DATE'] == date]
         # @Tip: df.iloc[-1] == df.iloc[-1:] == df.tail(1)
         date_1yr_ago_df = df_asset_dual[
@@ -315,9 +315,9 @@ def laa_variant_qqq_backtest(df_asset_laa, uem_monthly):
         # @Tip: .dt is needed when it's a group of data, if it's only one element you don't need .dt
         df_uem['YEAR'] = df_uem.loc[:, 'YEAR'].astype(str)
         df_uem['YEAR_MONTH'] = df_uem.loc[:, 'YEAR_MONTH'].astype(str)
-        year_month_str = str(date.year) + str(date.month).zfill(2)
+        year_month_str = str(date.year_month) + str(date.month).zfill(2)
         uem_target = df_uem[
-            (df_uem['YEAR'] == str(date.year)) & (df_uem['YEAR_MONTH'] == str(
+            (df_uem['YEAR'] == str(date.year_month)) & (df_uem['YEAR_MONTH'] == str(
                 year_month_str))]
 
         if uem_target.shape[0] == 0:
@@ -397,9 +397,9 @@ def laa_variant_smh_backtest(df_asset_laa, uem_monthly):
         # @Tip: .dt is needed when it's a group of data, if it's only one element you don't need .dt
         df_uem['YEAR'] = df_uem.loc[:, 'YEAR'].astype(str)
         df_uem['YEAR_MONTH'] = df_uem.loc[:, 'YEAR_MONTH'].astype(str)
-        year_month_str = str(date.year) + str(date.month).zfill(2)
+        year_month_str = str(date.year_month) + str(date.month).zfill(2)
         uem_target = df_uem[
-            (df_uem['YEAR'] == str(date.year)) & (df_uem['YEAR_MONTH'] == str(
+            (df_uem['YEAR'] == str(date.year_month)) & (df_uem['YEAR_MONTH'] == str(
                 year_month_str))]
 
         if uem_target.shape[0] == 0:
