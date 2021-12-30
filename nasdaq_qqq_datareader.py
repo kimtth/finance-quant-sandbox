@@ -1,9 +1,11 @@
 import os.path
 from datetime import datetime, timedelta
+
 import pandas as pd
 import pandas_datareader as pdr
-import numpy as np
-import nasdaq_data_rebalance
+
+from nasdaq_data_rebalance import rebalance_portfolio_by_ratio, end_of_month, \
+    rebalancing_criterias_uem
 
 
 def get_price_data(ticker, start, end):
@@ -44,6 +46,14 @@ def add_evaluation_property(df):
     return df
 
 
+def add_uem_evaluation_property(df):
+    df['UEM_CHANGE'] = df['UNEMPLOYMENT_RATE'].pct_change()
+    df['MA_12M'] = df['UNEMPLOYMENT_RATE'].rolling(12).mean()
+    df = df.reset_index(drop=True)
+
+    return df
+
+
 def gen_simulation_data(df_origin, leverage):
     df = df_origin.copy()
     initial_price = df['Adj Close'].head(1).item()
@@ -52,6 +62,7 @@ def gen_simulation_data(df_origin, leverage):
         if i > 0:
             df.loc[df.index[i], 'Adj Close'] = df.loc[df.index[i - 1], 'Adj Close'] + df.loc[
                 df.index[i - 1], 'Adj Close'] * (df.loc[df.index[i], 'PCT_CHANGE'] * leverage)
+
     df.loc[df.index[0], 'Adj Close'] = initial_price
     df['PCT_CHANGE'] = df['Adj Close'].pct_change()
 
@@ -82,7 +93,6 @@ def dfs_to_excel(targets, start, end, ticker_simulation=None):
 
 
 def populate_rebalancing_date_monthly(df):
-    df['DATE'] = df.index
     group_yyyymm = df.groupby('YEAR_MM', as_index=False)
     begin_date_monthly = group_yyyymm.head(1)
     end_date_monthly = group_yyyymm.tail(1)
@@ -113,7 +123,7 @@ def avg_momentum_score(df, invest_date):
     mtm_score_sum = 0
     mtm_score_cnt = 0
     for i in range(1, 13):
-        mtm_score_date = nasdaq_data_rebalance.end_of_month(df, invest_date, i)
+        mtm_score_date = end_of_month(df, invest_date, i)
         if mtm_score_date and len(df[df['DATE'] == mtm_score_date]['Adj Close']) > 0:
             mtm_score_date_price = df[df['DATE'] == mtm_score_date]['Adj Close'].item()
             invest_date_price = df[df['DATE'] == invest_date]['Adj Close'].item()
@@ -122,20 +132,15 @@ def avg_momentum_score(df, invest_date):
                 mtm_score_sum = mtm_score_sum + 1
             mtm_score_cnt += 1
 
-    avg_mtm_score = mtm_score_sum / mtm_score_cnt
-    print(mtm_score_cnt, round(avg_mtm_score, 2))
-    return avg_mtm_score
+    if mtm_score_cnt == 0:
+        return 0, 0
+
+    avg_mtm_score = round(mtm_score_sum / mtm_score_cnt, 2)
+    print(invest_date, mtm_score_cnt, avg_mtm_score)
+    return avg_mtm_score, mtm_score_cnt
 
 
-def add_uem_evaluation_property(df):
-    df['UEM_CHANGE'] = df['UNEMPLOYMENT_RATE'].pct_change()
-    df['MA_12M'] = df['UNEMPLOYMENT_RATE'].rolling(12).mean()
-    df = df.reset_index(drop=True)
-
-    return df
-
-
-def pause_and_cash_hold(df_origin, dropdown=15, leverage=1, period=30):
+def pause_and_cash_hold(df_origin, dropdown=30, leverage=1, period=30):
     df = df_origin.copy()
     minus_dropdown = df[df['DAY_RETURN (%)'] <= (-dropdown * leverage)]
 
@@ -150,6 +155,7 @@ def pause_and_cash_hold(df_origin, dropdown=15, leverage=1, period=30):
             pause_date_price = minus_dropdown.loc[minus_dropdown.index[i - prev_idx], 'Adj Close']
             prev_idx = prev_idx + 1
         elif i == 0:
+            df['Adj Period'] = False
             pass
         else:
             prev_idx = 1
@@ -159,9 +165,22 @@ def pause_and_cash_hold(df_origin, dropdown=15, leverage=1, period=30):
             lambda x: pause_date_price if (x['DATE'] >= pause_date) and (x['DATE'] <= pause_end_date) else x[
                 'Adj Close'], axis=1)
 
+        df['Adj Period'] = df[['DATE', 'Adj Close', 'Adj Period']].apply(
+            lambda x: True if (x['DATE'] >= pause_date) and (x['DATE'] <= pause_end_date) else x[
+                'Adj Period'], axis=1)
+
         prev_pause_end_date = pause_end_date
 
-    return df
+    # print(df.columns.values)
+    cols_list = list(df.columns.values)[:4]
+    cols_list.append(list(df.columns.values)[-1])
+    post_cols_list = list(df.columns.values)[5:-1]
+    cols_list = cols_list + post_cols_list
+
+    df = df[cols_list]
+    df = df[['DATE', 'YEAR', 'YEAR_MM', 'Adj Close', 'Adj Period']]
+
+    return df, minus_dropdown
 
 
 if __name__ == '__main__':
@@ -169,43 +188,72 @@ if __name__ == '__main__':
     end = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
     # ['^IXIC', '^DJI', '^GSPC', ^SOX] NASDAQ, DOW JONES, S&P, PHLX Semiconductor
     # Download from Web
-    # targets = ['^IXIC', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SPXL', '^SOX', 'SOXX', 'SOXL', 'SMH']
+    # targets = ['^IXIC', 'SPY', 'SHY', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SPXL', '^SOX', 'SOXX', 'SOXL', 'SMH']
     # ticker_simulation = ['QQQ', '^GSPC', '^SOX']
     # dfs_to_excel(targets, start, end, ticker_simulation)
+    # start = datetime(1999, 1, 1)
     # get_unemployment_to_excel(start, end)
 
-    # Read from Excel
-    '''
-    xls = pd.ExcelFile(os.path.abspath('./portfolio/NASDAQ-SP-QQQ-data.xlsx'))
+    # Pause and Cash hold test
+    # xls = pd.ExcelFile(os.path.abspath('./portfolio/NASDAQ-SP-QQQ-data.xlsx'))
+    # for sheet in xls.sheet_names:
+    #     if '^SOXSIMx3' in sheet:
+    #         df = pd.read_excel('./portfolio/NASDAQ-SP-QQQ-data.xlsx', sheet_name=sheet)  # index_col='DATE',
+    #         df, _ = pause_and_cash_hold(df)
+    #         df.to_excel('./portfolio/SOXSIMx3-Cash-Hold-data.xlsx', sheet_name='SOXSIMx3', index=False)
 
+    # Read from Excel
+    # Monthly Rebalancing - End of Month
+    porfpolio_tickers = ['^SOXSIMx3', 'SPY', 'SHY', '^GSPC']
+    uem_df = pd.read_excel(os.path.abspath('./portfolio/US-UNEMPLOYMENT-data.xlsx'))
+    xls = pd.ExcelFile(os.path.abspath('./portfolio/NASDAQ-SP-QQQ-data.xlsx'))
     dfs = dict()
     for sheet in xls.sheet_names:
-        if 'SIM' in sheet:
-            df = pd.read_excel('./portfolio/NASDAQ-SP-QQQ-data.xlsx', sheet_name=sheet) # index_col='DATE',
+        if sheet in porfpolio_tickers:
+            df = pd.read_excel('./portfolio/NASDAQ-SP-QQQ-data.xlsx', sheet_name=sheet)  # index_col='DATE',
             dfs[sheet] = df
+    dfs['UEM'] = uem_df
 
-    # Monthly Rebalancing - End of Month
-    # initial budget = 10000
-    # resample : https://stackoverflow.com/questions/17001389/pandas-resample-documentation
-    
     # Business year start & business year end Test
-    bl, el = populate_rebalancing_date_monthly(df)
-    invest_date = el[-1]
-    el = el[:-1]
+    begin_month, _end_month = populate_rebalancing_date_monthly(dfs['^SOXSIMx3'])
 
-    # Avg Momentum Score Test
-    avg_mtm_score_list = []
-    for ticker, df in dfs.items():
-        print(ticker)
+    # Type: Datetime
+    initial_invest_date = begin_month[0]
+    rebalancing_dates = _end_month
+    last_date = _end_month[-1]
+    end_month = _end_month[:-1]
 
-        invest_date = df['DATE'].tail(1).item()
-        avg_mtm_score = avg_momentum_score(df, invest_date)
-    '''
-    # Pause and Cash hold test
-    xls = pd.ExcelFile(os.path.abspath('./portfolio/NASDAQ-SP-QQQ-data.xlsx'))
-    for sheet in xls.sheet_names:
-        if '^SOXSIMx3' in sheet:
-            df = pd.read_excel('./NASDAQ-SP-QQQ-data.xlsx', sheet_name=sheet)  # index_col='DATE',
-            df = pause_and_cash_hold(df)
-            df = df[['DATE', 'YEAR', 'YEAR_MM', 'Adj Close']]
-            df.to_excel('SOXSIMx3-Cash-Hold-data.xlsx', sheet_name='SOXSIMx3', index=False)
+    # Risk Control #1
+    df, minus_dropdown = pause_and_cash_hold(dfs['^SOXSIMx3'])
+    df_spy = dfs['SPY']
+    df_spy['MA_200D'] = df_spy['Adj Close'].rolling(200).mean()
+    df_uem = dfs['UEM']
+
+    output = pd.DataFrame()
+    balance = 10000  # initial_balance
+    invest_dates = [initial_invest_date] + rebalancing_dates
+    minus_dropdown_dates = minus_dropdown['DATE'].tolist()
+    prev_transaction = dict()
+
+    for invest_date in invest_dates:
+        # Risk Control #2
+        risky_ratio, mtm_score_cnt = avg_momentum_score(df, invest_date)
+        # Risk Control #3
+        target_ticker = rebalancing_criterias_uem(df_spy, df_uem, invest_date)
+
+        if invest_date == initial_invest_date:
+            risky_balance, shy_balance = 0.5 * balance
+        else:
+            if target_ticker != 'SHY':
+                risky_balance = risky_ratio * balance
+                shy_balance = (1 - risky_ratio) * balance
+            else:
+                risky_balance = 0
+                shy_balance = balance
+
+        # @TODO
+
+        output_dict = {'DATE': invest_date, 'SHY_Q': 0, 'SHY_P': 0, 'SHY_BALANCE': shy_balance, 'RISK_Q': 0,
+                       'RISK_P': 0, 'RISK_BALANCE': shy_balance, 'RATIO': risky_ratio,
+                       'MTM_CNT': mtm_score_cnt, 'TARGET': target_ticker, 'TOTAL': 0}
+        output = output.append(output_dict, ignore_index=True)

@@ -27,8 +27,6 @@ def end_of_month(df, date, n_month_back=0):
     return date_ago
 
 
-
-
 def end_of_year(df, date, n_year_back=0):
     date_n_yr_adjust_range = datetime(date.year - n_year_back, date.month, date.day - 5)
 
@@ -46,12 +44,29 @@ def end_of_year(df, date, n_year_back=0):
     return date_1yr_ago_df
 
 
+def rebalancing_criterias_uem(df_spy, df_uem, rebalancing_date):
+    spy_price = df_spy.loc[df_spy['DATE'] == rebalancing_date, 'Adj Close'].item()
+    spy_ma_200d = df_spy.loc[df_spy['DATE'] == rebalancing_date, 'MA_200D'].item()
+
+    uem_yyyymm = str(rebalancing_date.year) + str(rebalancing_date.month).zfill(2)
+    df_uem['YEAR_MONTH'] = df_uem['YEAR_MONTH'].astype(str)
+    uem_index = df_uem.loc[df_uem['YEAR_MONTH'] == uem_yyyymm, 'UNEMPLOYMENT_RATE'].item()
+    uem_12m = df_uem.loc[df_uem['YEAR_MONTH'] == uem_yyyymm, 'MA_12M'].item()
+
+    if spy_price < spy_ma_200d and uem_index > uem_12m:
+        return 'SHY'
+    else:
+        return 'RISK'
+
+
 def rebalance_portfolio_by_ratio(df, date, portfolio_dict: dict):
+    pass
+
     if len(df[df['DATE'] == date]) > 0:
         rebalance_date_df = df[df['DATE'] == date]
         row_num = rebalance_date_df.index[0]
 
-        if row_num == 0: # invest_init
+        if row_num == 0:  # invest_init
             budget = 10000
         else:
             prev_row_num = row_num - 1
