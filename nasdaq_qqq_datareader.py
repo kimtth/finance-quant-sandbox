@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pandas_datareader as pdr
 
-from nasdaq_data_rebalance import rebalance_portfolio_by_ratio, end_of_month, \
-    rebalancing_criterias_uem
+from nasdaq_data_rebalance import rebalance_portfolio_by_ratio, next_transaction_date_mm, \
+    rebalancing_criterias_uem, graph_cagr_mdd
 
 
 def get_price_data(ticker, start, end):
@@ -123,7 +123,7 @@ def avg_momentum_score(df, invest_date):
     mtm_score_sum = 0
     mtm_score_cnt = 0
     for i in range(1, 13):
-        mtm_score_date = end_of_month(df, invest_date, i)
+        mtm_score_date = next_transaction_date_mm(df, invest_date, i)
         if mtm_score_date and len(df[df['DATE'] == mtm_score_date]['Adj Close']) > 0:
             mtm_score_date_price = df[df['DATE'] == mtm_score_date]['Adj Close'].item()
             invest_date_price = df[df['DATE'] == invest_date]['Adj Close'].item()
@@ -136,11 +136,11 @@ def avg_momentum_score(df, invest_date):
         return 0, 0
 
     avg_mtm_score = round(mtm_score_sum / mtm_score_cnt, 2)
-    print(invest_date, mtm_score_cnt, avg_mtm_score)
+    # print(invest_date, mtm_score_cnt, avg_mtm_score)
     return avg_mtm_score, mtm_score_cnt
 
 
-def pause_and_cash_hold(df_origin, dropdown=30, leverage=1, period=30):
+def pause_and_cash_hold(df_origin, dropdown=15, leverage=1, period=30):
     df = df_origin.copy()
     minus_dropdown = df[df['DAY_RETURN (%)'] <= (-dropdown * leverage)]
 
@@ -214,8 +214,13 @@ if __name__ == '__main__':
             dfs[sheet] = df
     dfs['UEM'] = uem_df
 
+    risky_asset_ticker = '^SOXSIMx3'
+    risky_asset_df = dfs[risky_asset_ticker]
+    cash_asset_ticker = 'SHY'
+    cash_asset_df = dfs[cash_asset_ticker]
+
     # Business year start & business year end Test
-    begin_month, _end_month = populate_rebalancing_date_monthly(dfs['^SOXSIMx3'])
+    begin_month, _end_month = populate_rebalancing_date_monthly(risky_asset_df)
 
     # Type: Datetime
     initial_invest_date = begin_month[0]
@@ -223,37 +228,61 @@ if __name__ == '__main__':
     last_date = _end_month[-1]
     end_month = _end_month[:-1]
 
-    # Risk Control #1
-    df, minus_dropdown = pause_and_cash_hold(dfs['^SOXSIMx3'])
     df_spy = dfs['SPY']
     df_spy['MA_200D'] = df_spy['Adj Close'].rolling(200).mean()
     df_uem = dfs['UEM']
 
     output = pd.DataFrame()
     balance = 10000  # initial_balance
-    invest_dates = [initial_invest_date] + rebalancing_dates
-    minus_dropdown_dates = minus_dropdown['DATE'].tolist()
-    prev_transaction = dict()
 
-    for invest_date in invest_dates:
+    # Risk Control #1
+    risky_asset_df, minus_dropdown = pause_and_cash_hold(risky_asset_df)
+    minus_dropdown_dates = minus_dropdown['DATE'].tolist()
+    invest_dates = [initial_invest_date] + minus_dropdown_dates + rebalancing_dates
+    invest_dates_sort = sorted(invest_dates)
+
+    prev_transaction = dict()
+    risky_quantity = 0
+    risky_price = 0
+
+    for invest_date in invest_dates_sort:
         # Risk Control #2
-        risky_ratio, mtm_score_cnt = avg_momentum_score(df, invest_date)
+        risky_ratio, mtm_score_cnt = avg_momentum_score(risky_asset_df, invest_date)
         # Risk Control #3
         target_ticker = rebalancing_criterias_uem(df_spy, df_uem, invest_date)
 
+        risky_price = risky_asset_df.loc[risky_asset_df['DATE'] == invest_date, 'Adj Close'].item()
+
         if invest_date == initial_invest_date:
-            risky_balance, shy_balance = 0.5 * balance
+            risky_balance = 0.5 * balance
+            cash_balance = 0.5 * balance
+            risky_quantity = round(risky_balance / risky_price, 2)
         else:
-            if target_ticker != 'SHY':
-                risky_balance = risky_ratio * balance
-                shy_balance = (1 - risky_ratio) * balance
-            else:
+            balance = risky_price * prev_transaction['RISK_Q'] + prev_transaction['CASH_EQ_BALANCE']
+
+            if invest_date in minus_dropdown_dates:
                 risky_balance = 0
-                shy_balance = balance
+                risky_quantity = 0
+                cash_balance = balance
+            else:
+                if target_ticker != 'SHY':
+                    risky_balance = risky_ratio * balance
+                    cash_balance = (1 - risky_ratio) * balance
+                    risky_quantity = round(risky_balance / risky_price, 2)
+                else:
+                    risky_balance = 0
+                    risky_quantity = 0
+                    cash_balance = balance
 
-        # @TODO
+        prev_transaction['RISK_Q'] = risky_quantity
+        prev_transaction['RISK_P'] = risky_price
+        prev_transaction['BALANCE'] = balance
+        prev_transaction['CASH_EQ_BALANCE'] = cash_balance
 
-        output_dict = {'DATE': invest_date, 'SHY_Q': 0, 'SHY_P': 0, 'SHY_BALANCE': shy_balance, 'RISK_Q': 0,
-                       'RISK_P': 0, 'RISK_BALANCE': shy_balance, 'RATIO': risky_ratio,
-                       'MTM_CNT': mtm_score_cnt, 'TARGET': target_ticker, 'TOTAL': 0}
+        output_dict = {'DATE': invest_date, 'CASH_EQ_BALANCE': cash_balance, 'RISK_Q': risky_quantity,
+                       'RISK_P': risky_price, 'RISK_BALANCE': risky_balance, 'AVG_MTM': risky_ratio,
+                       'MTM_CNT': mtm_score_cnt, 'TARGET': target_ticker, 'TOTAL': balance}
         output = output.append(output_dict, ignore_index=True)
+
+    output.to_excel('./portfolio/soxx-x3-risk-control.xlsx', sheet_name='soxx_x3', index=False)
+    graph_cagr_mdd(output, 'soxx-x3-risk-control.png')
