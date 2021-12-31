@@ -19,15 +19,13 @@ MDD -21.54066954224619
 
 ### DUAL MOMENTUM
 
-<img src="./DUAL_MOMENTUM_output.png" width="50%">
+<img src="./DUAL_MTM_output.png" width="50%">
 
 MM_PERIOD 13.67 
 CAGR 11.58 
 MDD -15.208144412024996
 
 ### UEM SMH (LAA Variant Only SMH)
-
-<img src="./UEM_SMH_output.png" width="50%">
 
 MM_PERIOD 14.5 
 CAGR 18.67 
@@ -39,7 +37,28 @@ MDD -26.501303001917485
 (base) >conda create --name pyconda --clone base
 ```
 
-## Leverage
+## Experimental - Leverage ETF - Risk Hedge
+
+<img src="./soxx-x3-risk-control.png" width="50%">
+
+MM_PERIOD 23.33 
+CAGR 8.3 
+MDD -75.25161282084039
+
+- Risk Control #1 
+
+Pause and hold cash in case of daily returns when fallen more than 20%.
+
+
+- Risk Control #2 
+
+Balancing a portion of risk asset by AVG Momentum Score
+
+
+- Risk Control #3
+
+Idea borrowed from LAA, avoid risky by UEM and SP MA200.
+
 
 - 전략 1
 

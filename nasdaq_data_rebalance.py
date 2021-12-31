@@ -9,10 +9,6 @@ plt.rcParams["figure.figsize"] = (10, 10)
 pd.options.mode.chained_assignment = None
 
 
-def next_transaction_date_dd(df, date, n_day_back=0):
-    pass
-
-
 def next_transaction_date_mm(df, date, n_month_back=0):
     n_day_adjust = 0
     n_year_back = 0
@@ -82,12 +78,12 @@ def rebalancing_criterias_uem(df_spy, df_uem, rebalancing_date):
 def graph_cagr_mdd(df_asset, file_name='output'):
     trade_month = round(len(df_asset.index) / 12, 2)
 
-    ## CAGR 계산
+    # CAGR
     if df_asset['TOTAL'].iat[0] != float(0):
         total_profit = (df_asset['TOTAL'].iat[-1] / df_asset['TOTAL'].iat[0])
         cagr = round((total_profit ** (1 / trade_month) - 1) * 100, 2)
 
-        ## MDD 계산
+        # MDD
         df_asset['DRAWDOWN'] = (-(df_asset['TOTAL'].cummax() - df_asset['TOTAL']) / df_asset['TOTAL'].cummax()) * 100
         df_asset['YEAR'] = df_asset['DATE'].dt.strftime('%Y%m').astype(str)
 
@@ -120,8 +116,3 @@ def graph_cagr_mdd(df_asset, file_name='output'):
         fig.autofmt_xdate()
         plt.savefig(file_name, dpi=400)
         # plt.show()
-
-
-def rebalance_portfolio_by_ratio(df, date, portfolio_dict: dict):
-    pass
-

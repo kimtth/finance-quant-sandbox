@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pandas_datareader as pdr
 
-from nasdaq_data_rebalance import rebalance_portfolio_by_ratio, next_transaction_date_mm, \
+from nasdaq_data_rebalance import next_transaction_date_mm, \
     rebalancing_criterias_uem, graph_cagr_mdd
 
 
@@ -194,14 +194,6 @@ if __name__ == '__main__':
     # start = datetime(1999, 1, 1)
     # get_unemployment_to_excel(start, end)
 
-    # Pause and Cash hold test
-    # xls = pd.ExcelFile(os.path.abspath('./portfolio/NASDAQ-SP-QQQ-data.xlsx'))
-    # for sheet in xls.sheet_names:
-    #     if '^SOXSIMx3' in sheet:
-    #         df = pd.read_excel('./portfolio/NASDAQ-SP-QQQ-data.xlsx', sheet_name=sheet)  # index_col='DATE',
-    #         df, _ = pause_and_cash_hold(df)
-    #         df.to_excel('./portfolio/SOXSIMx3-Cash-Hold-data.xlsx', sheet_name='SOXSIMx3', index=False)
-
     # Read from Excel
     # Monthly Rebalancing - End of Month
     porfpolio_tickers = ['^SOXSIMx3', 'SPY', 'SHY', '^GSPC']
@@ -225,8 +217,8 @@ if __name__ == '__main__':
     # Type: Datetime
     initial_invest_date = begin_month[0]
     rebalancing_dates = _end_month
-    last_date = _end_month[-1]
-    end_month = _end_month[:-1]
+    # last_date = _end_month[-1]
+    # end_month = _end_month[:-1]
 
     df_spy = dfs['SPY']
     df_spy['MA_200D'] = df_spy['Adj Close'].rolling(200).mean()
@@ -235,20 +227,22 @@ if __name__ == '__main__':
     output = pd.DataFrame()
     balance = 10000  # initial_balance
 
-    # Risk Control #1
-    risky_asset_df, minus_dropdown = pause_and_cash_hold(risky_asset_df)
-    minus_dropdown_dates = minus_dropdown['DATE'].tolist()
+    # Risk Control #1 - Pause and hold cash in case of daily returns when fallen more than 10%.
+    risky_asset_df, minus_dropdown = pause_and_cash_hold(risky_asset_df, 20)
+    risky_asset_df['Period Changed'] = risky_asset_df['Adj Period'].diff()
+    risky_asset_df_filtered = risky_asset_df[risky_asset_df['Period Changed'] != 0]
+    minus_dropdown_dates = risky_asset_df_filtered.loc[risky_asset_df['Adj Period'] == True, 'DATE'].tolist()
+
     invest_dates = [initial_invest_date] + minus_dropdown_dates + rebalancing_dates
     invest_dates_sort = sorted(invest_dates)
 
     prev_transaction = dict()
-    risky_quantity = 0
-    risky_price = 0
+    risky_quantity = risky_price = 0
 
     for invest_date in invest_dates_sort:
-        # Risk Control #2
+        # Risk Control #2 - AVG Momentum Score
         risky_ratio, mtm_score_cnt = avg_momentum_score(risky_asset_df, invest_date)
-        # Risk Control #3
+        # Risk Control #3 - Idea borrowed from LAA, avoid risky by UEM and SP MA200.
         target_ticker = rebalancing_criterias_uem(df_spy, df_uem, invest_date)
 
         risky_price = risky_asset_df.loc[risky_asset_df['DATE'] == invest_date, 'Adj Close'].item()
@@ -261,18 +255,21 @@ if __name__ == '__main__':
             balance = risky_price * prev_transaction['RISK_Q'] + prev_transaction['CASH_EQ_BALANCE']
 
             if invest_date in minus_dropdown_dates:
-                risky_balance = 0
-                risky_quantity = 0
+                risky_balance = risky_quantity = 0
                 cash_balance = balance
             else:
-                if target_ticker != 'SHY':
-                    risky_balance = risky_ratio * balance
-                    cash_balance = (1 - risky_ratio) * balance
-                    risky_quantity = round(risky_balance / risky_price, 2)
-                else:
-                    risky_balance = 0
-                    risky_quantity = 0
+                if target_ticker == 'SHY':
+                    risky_balance = risky_quantity = 0
                     cash_balance = balance
+                else:
+                    pause_hold = risky_asset_df.loc[risky_asset_df['DATE'] == invest_date, 'Adj Period'].item()
+                    if pause_hold:
+                        risky_balance = risky_quantity = 0
+                        cash_balance = balance
+                    else:
+                        risky_balance = risky_ratio * balance
+                        cash_balance = (1 - risky_ratio) * balance
+                        risky_quantity = round(risky_balance / risky_price, 2)
 
         prev_transaction['RISK_Q'] = risky_quantity
         prev_transaction['RISK_P'] = risky_price

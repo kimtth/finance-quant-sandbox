@@ -513,7 +513,7 @@ if __name__ == '__main__':
     df_output = dual_momentum_backtest(df_asset_dual)
     filename = 'dual-mtum-output-' + datetime.now().strftime("%Y%m%d-%H%M%S") + '.xlsx'
     df_output.to_excel('.' + os.sep + filename, sheet_name='rtn')
-    graph_cagr_mdd(df_output, 'DUAL_MOMENTUM_output.png')
+    graph_cagr_mdd(df_output, 'DUAL_MTM_output.png')
     print('DUAL MOMENTUM -- END')
 
     print('UEM SMH -- START')
