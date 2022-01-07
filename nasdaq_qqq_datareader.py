@@ -1,4 +1,4 @@
-import os.path
+import os
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -227,7 +227,7 @@ if __name__ == '__main__':
     output = pd.DataFrame()
     balance = 10000  # initial_balance
 
-    # Risk Control #1 - Pause and hold cash in case of daily returns when fallen more than 10%.
+    # Risk Control #1 - Pause and hold cash in case of daily returns when fallen more than 20%.
     risky_asset_df, minus_dropdown = pause_and_cash_hold(risky_asset_df, 20)
     risky_asset_df['Period Changed'] = risky_asset_df['Adj Period'].diff()
     risky_asset_df_filtered = risky_asset_df[risky_asset_df['Period Changed'] != 0]
@@ -281,5 +281,6 @@ if __name__ == '__main__':
                        'MTM_CNT': mtm_score_cnt, 'TARGET': target_ticker, 'TOTAL': balance}
         output = output.append(output_dict, ignore_index=True)
 
-    output.to_excel('./portfolio/soxx-x3-risk-control.xlsx', sheet_name='soxx_x3', index=False)
+    output_rtn = output.merge(risky_asset_df, on='DATE', how='inner')
+    output_rtn.to_excel('./portfolio/soxx-x3-risk-control.xlsx', sheet_name='soxx_x3', index=False)
     graph_cagr_mdd(output, 'soxx-x3-risk-control.png')
