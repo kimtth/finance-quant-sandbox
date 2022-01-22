@@ -188,11 +188,11 @@ if __name__ == '__main__':
     end = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
     # ['^IXIC', '^DJI', '^GSPC', ^SOX] NASDAQ, DOW JONES, S&P, PHLX Semiconductor
     # Download from Web
-    # targets = ['^IXIC', 'SPY', 'SHY', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SPXL', '^SOX', 'SOXX', 'SOXL', 'SMH']
-    # ticker_simulation = ['QQQ', '^GSPC', '^SOX']
-    # dfs_to_excel(targets, start, end, ticker_simulation)
-    # start = datetime(1999, 1, 1)
-    # get_unemployment_to_excel(start, end)
+    targets = ['^IXIC', 'SPY', 'SHY', 'QQQ', 'TQQQ', 'TECL', '^GSPC', 'SPXL', '^SOX', 'SOXX', 'SOXL', 'SMH']
+    ticker_simulation = ['QQQ', '^GSPC', '^SOX']
+    dfs_to_excel(targets, start, end, ticker_simulation)
+    start = datetime(1999, 1, 1)
+    get_unemployment_to_excel(start, end)
 
     # Read from Excel
     # Monthly Rebalancing - End of Month
